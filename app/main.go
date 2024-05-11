@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
 	tbapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/pkarpovich/tg-relay-bot/app/bot"
 	"github.com/pkarpovich/tg-relay-bot/app/config"
 	"github.com/pkarpovich/tg-relay-bot/app/events"
+	"github.com/pkarpovich/tg-relay-bot/app/http"
 	"log"
+	"sync"
 )
 
 func main() {
@@ -23,12 +24,25 @@ func main() {
 }
 
 func run(cfg *config.Config) error {
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	go startTelegramListener(cfg, &wg)
+	go startHttpServer(cfg, &wg)
+	wg.Wait()
+
+	return nil
+}
+
+func startTelegramListener(cfg *config.Config, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	messagesForSend := make(chan string)
 	botClient := bot.NewClient()
 
 	tbAPI, err := tbapi.NewBotAPI(cfg.Telegram.Token)
 	if err != nil {
-		return fmt.Errorf("failed to create Telegram events: %w", err)
+		log.Fatalf("[ERROR] failed to create Telegram events: %s", err)
 	}
 
 	tgListener := &events.TelegramListener{
@@ -39,8 +53,13 @@ func run(cfg *config.Config) error {
 	}
 
 	if err := tgListener.Do(); err != nil {
-		return fmt.Errorf("failed to start Telegram listener: %w", err)
+		log.Fatalf("[ERROR] failed to start Telegram listener: %s", err)
 	}
+}
 
-	return nil
+func startHttpServer(cfg *config.Config, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	httpClient := http.CreateClient(cfg)
+	httpClient.Start()
 }

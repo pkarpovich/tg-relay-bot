@@ -11,8 +11,13 @@ type TelegramConfig struct {
 	SuperUsers []int64 `env:"TELEGRAM_SUPER_USERS" env-separator:","`
 }
 
+type HttpConfig struct {
+	Port int `env:"HTTP_PORT" env-default:"8080"`
+}
+
 type Config struct {
 	Telegram TelegramConfig
+	Http     HttpConfig
 }
 
 func Init() (*Config, error) {
