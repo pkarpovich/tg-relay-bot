@@ -17,9 +17,9 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.watchmen.rule=Host(`relay.${ROOT_DOMAIN}`)"
-      - "traefik.http.routers.watchmen.entrypoints=https"
-      - "traefik.http.routers.watchmen.tls.certresolver=le"
+      - "traefik.http.routers.relay.rule=Host(`relay.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.relay.entrypoints=https"
+      - "traefik.http.routers.relay.tls.certresolver=le"
 
 networks:
   proxy:
