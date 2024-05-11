@@ -1,0 +1,26 @@
+services:
+  tg-relay-bot:
+    container_name: tg-relay-bot
+    build:
+      context: .
+      target: final
+    restart: unless-stopped
+    environment:
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      TELEGRAM_SUPER_USERS: ${TELEGRAM_SUPER_USERS}
+      HTTP_SECRET: ${HTTP_SECRET}
+      HTTP_PORT: 8080
+    expose:
+      - 8080
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.watchmen.rule=Host(`relay.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.watchmen.entrypoints=https"
+      - "traefik.http.routers.watchmen.tls.certresolver=le"
+
+networks:
+  proxy:
+    external: true
