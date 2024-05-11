@@ -15,18 +15,21 @@ import (
 )
 
 type Client struct {
-	Config *config.Config
+	Config          *config.Config
+	MessagesForSend chan string
 }
 
-func CreateClient(cfg *config.Config) *Client {
+func CreateClient(cfg *config.Config, messagesForSend chan string) *Client {
 	return &Client{
-		Config: cfg,
+		MessagesForSend: messagesForSend,
+		Config:          cfg,
 	}
 }
 
 func (hc *Client) Start() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", hc.healthHandler)
+	mux.HandleFunc("POST /send", hc.sendHandler)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", hc.Config.Http.Port),
@@ -59,17 +62,44 @@ type HealthResponse struct {
 	Ok bool `json:"ok"`
 }
 
-type ErrorResponse struct {
-	Error  string `json:"error"`
-	Status int    `json:"status"`
-}
-
 func (hc *Client) healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})
 	if err != nil {
 		log.Printf("[ERROR] Failed to write response: %s", err)
 	}
+}
+
+func (hc *Client) sendHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Header.Get("X-Secret") != hc.Config.Http.SecretApiKey {
+		hc.respondWithError(w, errors.New("unauthorized"), http.StatusUnauthorized)
+		return
+	}
+
+	var data struct {
+		Message string `json:"message"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		hc.respondWithError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("[INFO] Sending message: %s", data.Message)
+	hc.MessagesForSend <- data.Message
+
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(HealthResponse{Ok: true})
+	if err != nil {
+		log.Printf("[ERROR] Failed to write response: %s", err)
+	}
+}
+
+type ErrorResponse struct {
+	Error  string `json:"error"`
+	Status int    `json:"status"`
 }
 
 func (hc *Client) respondWithError(w http.ResponseWriter, err error, code int) {

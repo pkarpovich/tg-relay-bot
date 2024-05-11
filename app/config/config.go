@@ -12,7 +12,8 @@ type TelegramConfig struct {
 }
 
 type HttpConfig struct {
-	Port int `env:"HTTP_PORT" env-default:"8080"`
+	Port         int    `env:"HTTP_PORT" env-default:"8080"`
+	SecretApiKey string `env:"HTTP_SECRET"`
 }
 
 type Config struct {

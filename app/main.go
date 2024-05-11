@@ -7,7 +7,6 @@ import (
 	"github.com/pkarpovich/tg-relay-bot/app/events"
 	"github.com/pkarpovich/tg-relay-bot/app/http"
 	"log"
-	"sync"
 )
 
 func main() {
@@ -24,20 +23,15 @@ func main() {
 }
 
 func run(cfg *config.Config) error {
-	var wg sync.WaitGroup
+	messagesForSend := make(chan string)
 
-	wg.Add(2)
-	go startTelegramListener(cfg, &wg)
-	go startHttpServer(cfg, &wg)
-	wg.Wait()
+	go startHttpServer(cfg, messagesForSend)
+	startTelegramListener(cfg, messagesForSend)
 
 	return nil
 }
 
-func startTelegramListener(cfg *config.Config, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	messagesForSend := make(chan string)
+func startTelegramListener(cfg *config.Config, messagesForSend chan string) {
 	botClient := bot.NewClient()
 
 	tbAPI, err := tbapi.NewBotAPI(cfg.Telegram.Token)
@@ -52,14 +46,14 @@ func startTelegramListener(cfg *config.Config, wg *sync.WaitGroup) {
 		MessagesForSend: messagesForSend,
 	}
 
+	go tgListener.SendMessagesForAdmins()
+
 	if err := tgListener.Do(); err != nil {
 		log.Fatalf("[ERROR] failed to start Telegram listener: %s", err)
 	}
 }
 
-func startHttpServer(cfg *config.Config, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	httpClient := http.CreateClient(cfg)
+func startHttpServer(cfg *config.Config, messagesForSend chan string) {
+	httpClient := http.CreateClient(cfg, messagesForSend)
 	httpClient.Start()
 }
