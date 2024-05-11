@@ -162,7 +162,7 @@ func (tl *TelegramListener) SendMessagesForAdmins() {
 		select {
 		case msg := <-tl.MessagesForSend:
 			for _, adminID := range adminIds {
-				_, err := tl.TbAPI.Send(NewMarkdownMessage(adminID, msg, nil))
+				_, err := tl.TbAPI.Send(NewMessage(adminID, msg))
 				if err != nil {
 					log.Printf("[ERROR] failed to send message: %v", err)
 				}
