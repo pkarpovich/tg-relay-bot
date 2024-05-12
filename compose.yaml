@@ -14,6 +14,8 @@ services:
     expose:
       - 8080
       - 2525
+    ports:
+      - 2525:2525
     networks:
       - proxy
     labels:
@@ -23,12 +25,6 @@ services:
       - "traefik.http.routers.relay.entrypoints=https"
       - "traefik.http.routers.relay.tls.certresolver=le"
       - "traefik.http.services.relay.loadbalancer.server.port=8080"
-      - "traefik.tcp.routers.relay.entrypoints=smtp"
-      - "traefik.tcp.routers.smtp.rule=HostSNI(`smtp.${ROOT_DOMAIN}`)"
-      - "traefik.tcp.routers.smtp.tls=true"
-      - "traefik.tcp.routers.smtp.tls.certresolver=le"
-      - "traefik.tcp.routers.smtp.service=smtp-service"
-      - "traefik.tcp.services.smtp-service.loadbalancer.server.port=2525"
 
 networks:
   proxy:
