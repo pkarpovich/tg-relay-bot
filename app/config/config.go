@@ -16,9 +16,15 @@ type HttpConfig struct {
 	SecretApiKey string `env:"HTTP_SECRET"`
 }
 
+type SmtpConfig struct {
+	AllowedHosts []string `env:"SMTP_ALLOWED_HOSTS" env-separator:","`
+	ListenAddr   string   `env:"SMTP_LISTEN_ADDR" env-default:"0.0.0.0:2525"`
+}
+
 type Config struct {
 	Telegram TelegramConfig
 	Http     HttpConfig
+	Smtp     SmtpConfig
 }
 
 func Init() (*Config, error) {

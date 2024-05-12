@@ -6,6 +6,7 @@ import (
 	"github.com/pkarpovich/tg-relay-bot/app/config"
 	"github.com/pkarpovich/tg-relay-bot/app/events"
 	"github.com/pkarpovich/tg-relay-bot/app/http"
+	"github.com/pkarpovich/tg-relay-bot/app/smtp_server"
 	"log"
 )
 
@@ -26,6 +27,7 @@ func run(cfg *config.Config) error {
 	messagesForSend := make(chan string)
 
 	go startHttpServer(cfg, messagesForSend)
+	go startMailServer(cfg, messagesForSend)
 	startTelegramListener(cfg, messagesForSend)
 
 	return nil
@@ -56,4 +58,12 @@ func startTelegramListener(cfg *config.Config, messagesForSend chan string) {
 func startHttpServer(cfg *config.Config, messagesForSend chan string) {
 	httpClient := http.CreateClient(cfg, messagesForSend)
 	httpClient.Start()
+}
+
+func startMailServer(cfg *config.Config, messagesForSend chan string) {
+	mailServer := smtp_server.NewServer(cfg, messagesForSend)
+
+	if err := mailServer.Start(); err != nil {
+		log.Fatalf("[ERROR] failed to start mail server: %s", err)
+	}
 }
