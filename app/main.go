@@ -1,7 +1,7 @@
 package main
 
 import (
-	tbapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tbapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/pkarpovich/tg-relay-bot/app/bot"
 	"github.com/pkarpovich/tg-relay-bot/app/config"
 	"github.com/pkarpovich/tg-relay-bot/app/events"

@@ -30,6 +30,7 @@ func (hc *Client) Start() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", hc.healthHandler)
 	mux.HandleFunc("POST /send", hc.sendHandler)
+	mux.HandleFunc("POST /webhook", hc.webhookHandler)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", hc.Config.Http.Port),
@@ -92,6 +93,28 @@ func (hc *Client) sendHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(HealthResponse{Ok: true})
+	if err != nil {
+		log.Printf("[ERROR] Failed to write response: %s", err)
+	}
+}
+
+func (hc *Client) webhookHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var data struct {
+		Content string `json:"content"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		hc.respondWithError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("[INFO] Received webhook notification: %s", data.Content)
+	hc.MessagesForSend <- data.Content
+
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})
 	if err != nil {
 		log.Printf("[ERROR] Failed to write response: %s", err)
 	}
