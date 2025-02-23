@@ -8,62 +8,60 @@ import (
 	"github.com/pkarpovich/tg-relay-bot/app/config"
 	"log"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
-type Client struct {
-	Config          *config.Config
-	MessagesForSend chan string
+type Server struct {
+	config          *config.Config
+	server          *http.Server
+	messagesForSend chan string
 }
 
-func CreateClient(cfg *config.Config, messagesForSend chan string) *Client {
-	return &Client{
-		MessagesForSend: messagesForSend,
-		Config:          cfg,
-	}
-}
-
-func (hc *Client) Start() {
+func CreateServer(cfg *config.Config, messagesForSend chan string) *Server {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", hc.healthHandler)
-	mux.HandleFunc("POST /send", hc.sendHandler)
-	mux.HandleFunc("POST /webhook", hc.webhookHandler)
+	server := &Server{
+		config:          cfg,
+		messagesForSend: messagesForSend,
+	}
 
-	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", hc.Config.Http.Port),
+	mux.HandleFunc("GET /health", server.healthHandler)
+	mux.HandleFunc("POST /send", server.sendHandler)
+	mux.HandleFunc("POST /webhook", server.webhookHandler)
+
+	server.server = &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.Http.Port),
 		Handler: mux,
 	}
 
+	return server
+}
+
+func (s *Server) Start(ctx context.Context) error {
+	errChan := make(chan error, 1)
 	go func() {
-		log.Printf("[INFO] Starting HTTP server on %s", server.Addr)
-		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("[ERROR] HTTP server error: %s", err)
-			return
+		log.Printf("[INFO] Starting HTTP server on %s", s.server.Addr)
+		if err := s.server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			errChan <- fmt.Errorf("HTTP server error: %w", err)
 		}
-		log.Printf("[INFO] HTTP server stopped")
+		close(errChan)
 	}()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
-
-	shutdownCtx, shutdownRelease := context.WithTimeout(context.Background(), 10*time.Second)
-	defer shutdownRelease()
-
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf("[ERROR] HTTP server shutdown error: %s", err)
+	select {
+	case err := <-errChan:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	log.Printf("[INFO] HTTP server stopped")
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	return s.server.Shutdown(ctx)
 }
 
 type HealthResponse struct {
 	Ok bool `json:"ok"`
 }
 
-func (hc *Client) healthHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})
 	if err != nil {
@@ -71,11 +69,11 @@ func (hc *Client) healthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (hc *Client) sendHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	if r.Header.Get("X-Secret") != hc.Config.Http.SecretApiKey {
-		hc.respondWithError(w, errors.New("unauthorized"), http.StatusUnauthorized)
+	if r.Header.Get("X-Secret") != s.config.Http.SecretApiKey {
+		s.respondWithError(w, errors.New("unauthorized"), http.StatusUnauthorized)
 		return
 	}
 
@@ -84,12 +82,12 @@ func (hc *Client) sendHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
-		hc.respondWithError(w, err, http.StatusBadRequest)
+		s.respondWithError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	log.Printf("[INFO] Sending message: %s", data.Message)
-	hc.MessagesForSend <- data.Message
+	s.messagesForSend <- data.Message
 
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(HealthResponse{Ok: true})
@@ -98,7 +96,7 @@ func (hc *Client) sendHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (hc *Client) webhookHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var data struct {
@@ -106,12 +104,12 @@ func (hc *Client) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		hc.respondWithError(w, err, http.StatusBadRequest)
+		s.respondWithError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	log.Printf("[INFO] Received webhook notification: %s", data.Content)
-	hc.MessagesForSend <- data.Content
+	s.messagesForSend <- data.Content
 
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})
@@ -125,7 +123,7 @@ type ErrorResponse struct {
 	Status int    `json:"status"`
 }
 
-func (hc *Client) respondWithError(w http.ResponseWriter, err error, code int) {
+func (s *Server) respondWithError(w http.ResponseWriter, err error, code int) {
 	log.Printf("[ERROR] Internal server error: %s", err)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

@@ -1,6 +1,7 @@
 package events
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,15 +36,18 @@ type RemoveTaskData struct {
 	Type   string `json:"type"`
 }
 
-func (tl *TelegramListener) Do() error {
+func (tl *TelegramListener) Do(ctx context.Context) error {
 	u := tbapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := tl.TbAPI.GetUpdatesChan(u)
 
+	go tl.SendMessagesForAdmins(ctx)
+
 	for {
 		select {
-
+		case <-ctx.Done():
+			return ctx.Err()
 		case update, ok := <-updates:
 			if !ok {
 				return fmt.Errorf("telegram update chan closed")
@@ -58,6 +62,10 @@ func (tl *TelegramListener) Do() error {
 			}
 		}
 	}
+}
+
+func (tl *TelegramListener) Shutdown(_ context.Context) error {
+	return nil
 }
 
 func (tl *TelegramListener) processEvent(update tbapi.Update) error {
@@ -155,11 +163,13 @@ func (tl *TelegramListener) handlePingCommand(update tbapi.Update) {
 	}
 }
 
-func (tl *TelegramListener) SendMessagesForAdmins() {
+func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 	adminIds := tl.SuperUsers
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case msg := <-tl.MessagesForSend:
 			for _, adminID := range adminIds {
 				_, err := tl.TbAPI.Send(NewMessage(adminID, msg))

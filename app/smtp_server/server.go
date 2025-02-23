@@ -1,6 +1,7 @@
 package smtp_server
 
 import (
+	"context"
 	"fmt"
 	"github.com/flashmob/go-guerrilla"
 	"github.com/flashmob/go-guerrilla/backends"
@@ -18,6 +19,7 @@ type FormattedEmail struct {
 type Server struct {
 	messagesForSend chan string
 	daemon          guerrilla.Daemon
+	quit            chan struct{}
 }
 
 func NewServer(cfg *config.Config, messagesForSend chan string) *Server {
@@ -41,15 +43,29 @@ func NewServer(cfg *config.Config, messagesForSend chan string) *Server {
 	return &Server{
 		messagesForSend: messagesForSend,
 		daemon:          d,
+		quit:            make(chan struct{}),
 	}
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(ctx context.Context) error {
 	s.daemon.AddProcessor("TelegramBot", s.telegramBotProcessorFactory())
+
 	err := s.daemon.Start()
 	if err != nil {
 		return err
 	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.quit:
+		return nil
+	}
+}
+
+func (s *Server) Shutdown() error {
+	close(s.quit)
+	s.daemon.Shutdown()
 
 	return nil
 }
