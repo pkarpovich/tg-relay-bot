@@ -81,9 +81,9 @@ func NewMarkdownMessage(chatID int64, text string, replyMarkup *tbapi.InlineKeyb
 
 ### Task 3: Add tests
 
-- [ ] Create `app/http/client_test.go` with table-driven tests for `sendHandler`: plain text request, request with `parse_mode: "MarkdownV2"`, missing message, wrong secret
-- [ ] Create `app/events/events_test.go` with tests for `SendMessagesForAdmins`: plain text payload dispatches `NewMessage`, MarkdownV2 payload dispatches with parse mode set
-- [ ] Run tests: `go test ./...` — all pass
+- [x] Create `app/http/client_test.go` with table-driven tests for `sendHandler`: plain text request, request with `parse_mode: "MarkdownV2"`, missing message, wrong secret
+- [x] Create `app/events/events_test.go` with tests for `SendMessagesForAdmins`: plain text payload dispatches `NewMessage`, MarkdownV2 payload dispatches with parse mode set
+- [x] Run tests: `go test ./...` — all pass
 
 ### Task 4: Verify acceptance criteria
 
