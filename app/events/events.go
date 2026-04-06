@@ -178,7 +178,16 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 			return
 		case payload := <-tl.MessagesForSend:
 			for _, adminID := range adminIds {
-				_, err := tl.TbAPI.Send(NewMessage(adminID, payload.Text))
+				var msg tbapi.MessageConfig
+				switch payload.ParseMode {
+				case "MarkdownV2":
+					msg = NewMarkdownMessage(adminID, payload.Text)
+				case "HTML":
+					msg = NewHTMLMessage(adminID, payload.Text)
+				default:
+					msg = NewMessage(adminID, payload.Text)
+				}
+				_, err := tl.TbAPI.Send(msg)
 				if err != nil {
 					log.Printf("[ERROR] failed to send message: %v", err)
 				}
@@ -211,20 +220,16 @@ func (tl *TelegramListener) reactToMessage(chatID int64, messageID int, reaction
 	return nil
 }
 
-func NewMarkdownMessage(chatID int64, text string, replyMarkup *tbapi.InlineKeyboardMarkup) tbapi.MessageConfig {
-	return tbapi.MessageConfig{
-		BaseChat: tbapi.BaseChat{
-			ChatConfig: tbapi.ChatConfig{
-				ChatID: chatID,
-			},
-			ReplyMarkup: replyMarkup,
-		},
-		LinkPreviewOptions: tbapi.LinkPreviewOptions{
-			IsDisabled: false,
-		},
-		ParseMode: tbapi.ModeMarkdownV2,
-		Text:      text,
-	}
+func NewMarkdownMessage(chatID int64, text string) tbapi.MessageConfig {
+	msg := tbapi.NewMessage(chatID, text)
+	msg.ParseMode = tbapi.ModeMarkdownV2
+	return msg
+}
+
+func NewHTMLMessage(chatID int64, text string) tbapi.MessageConfig {
+	msg := tbapi.NewMessage(chatID, text)
+	msg.ParseMode = tbapi.ModeHTML
+	return msg
 }
 
 func NewMessage(chatID int64, text string) tbapi.MessageConfig {

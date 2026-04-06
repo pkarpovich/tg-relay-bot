@@ -73,11 +73,11 @@ func NewMarkdownMessage(chatID int64, text string, replyMarkup *tbapi.InlineKeyb
 
 ### Task 2: Use parse_mode in `SendMessagesForAdmins`
 
-- [ ] Update `SendMessagesForAdmins` to read `MessagePayload` from channel
-- [ ] When `ParseMode` is `MarkdownV2` or `HTML`: create message with corresponding `tbapi` parse mode
-- [ ] When `ParseMode` is empty: use `NewMessage` (plain text, existing behavior)
-- [ ] Remove `replyMarkup` parameter from `NewMarkdownMessage` (unused, simplify to match `NewMessage` signature)
-- [ ] Verify project compiles: `go build ./...`
+- [x] Update `SendMessagesForAdmins` to read `MessagePayload` from channel
+- [x] When `ParseMode` is `MarkdownV2` or `HTML`: create message with corresponding `tbapi` parse mode
+- [x] When `ParseMode` is empty: use `NewMessage` (plain text, existing behavior)
+- [x] Remove `replyMarkup` parameter from `NewMarkdownMessage` (unused, simplify to match `NewMessage` signature)
+- [x] Verify project compiles: `go build ./...`
 
 ### Task 3: Add tests
 
