@@ -63,13 +63,13 @@ func NewMarkdownMessage(chatID int64, text string, replyMarkup *tbapi.InlineKeyb
 
 ### Task 1: Introduce `MessagePayload` type and update channel
 
-- [ ] Define `MessagePayload` struct in `app/events/events.go` with `Text string` and `ParseMode string` fields
-- [ ] Change channel type from `chan string` to `chan MessagePayload` in `TelegramListener`, `Server` (http), and `Server` (smtp)
-- [ ] Update `main.go`: `messagesForSend := make(chan MessagePayload, 100)`
-- [ ] Update `webhookHandler` to send `MessagePayload{Text: data.Content}`
-- [ ] Update `sendEmailToTelegram` to send `MessagePayload{Text: formattedEmail.Text}`
-- [ ] Update `sendHandler` to parse optional `parse_mode` from JSON body and send `MessagePayload{Text: data.Message, ParseMode: data.ParseMode}`
-- [ ] Verify project compiles: `go build ./...`
+- [x] Define `MessagePayload` struct in `app/events/events.go` with `Text string` and `ParseMode string` fields
+- [x] Change channel type from `chan string` to `chan MessagePayload` in `TelegramListener`, `Server` (http), and `Server` (smtp)
+- [x] Update `main.go`: `messagesForSend := make(chan MessagePayload, 100)`
+- [x] Update `webhookHandler` to send `MessagePayload{Text: data.Content}`
+- [x] Update `sendEmailToTelegram` to send `MessagePayload{Text: formattedEmail.Text}`
+- [x] Update `sendHandler` to parse optional `parse_mode` from JSON body and send `MessagePayload{Text: data.Message, ParseMode: data.ParseMode}`
+- [x] Verify project compiles: `go build ./...`
 
 ### Task 2: Use parse_mode in `SendMessagesForAdmins`
 

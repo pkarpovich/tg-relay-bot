@@ -16,6 +16,11 @@ const (
 	PingCommand = "ping"
 )
 
+type MessagePayload struct {
+	Text      string
+	ParseMode string
+}
+
 type Bot interface {
 	OnMessage(msg bot.Message) (bool, error)
 }
@@ -30,7 +35,7 @@ type TelegramListener struct {
 	SuperUsers      []int64
 	TbAPI           TbAPI
 	Bot             Bot
-	MessagesForSend chan string
+	MessagesForSend chan MessagePayload
 }
 
 type RemoveTaskData struct {
@@ -171,9 +176,9 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case msg := <-tl.MessagesForSend:
+		case payload := <-tl.MessagesForSend:
 			for _, adminID := range adminIds {
-				_, err := tl.TbAPI.Send(NewMessage(adminID, msg))
+				_, err := tl.TbAPI.Send(NewMessage(adminID, payload.Text))
 				if err != nil {
 					log.Printf("[ERROR] failed to send message: %v", err)
 				}

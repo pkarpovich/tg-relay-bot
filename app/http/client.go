@@ -10,15 +10,16 @@ import (
 	"time"
 
 	"github.com/pkarpovich/tg-relay-bot/app/config"
+	"github.com/pkarpovich/tg-relay-bot/app/events"
 )
 
 type Server struct {
 	config          *config.Config
 	server          *http.Server
-	messagesForSend chan string
+	messagesForSend chan events.MessagePayload
 }
 
-func CreateServer(cfg *config.Config, messagesForSend chan string) *Server {
+func CreateServer(cfg *config.Config, messagesForSend chan events.MessagePayload) *Server {
 	mux := http.NewServeMux()
 	server := &Server{
 		config:          cfg,
@@ -84,7 +85,8 @@ func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var data struct {
-		Message string `json:"message"`
+		Message   string `json:"message"`
+		ParseMode string `json:"parse_mode"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
@@ -93,7 +95,7 @@ func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[INFO] Sending message: %s", data.Message)
-	s.messagesForSend <- data.Message
+	s.messagesForSend <- events.MessagePayload{Text: data.Message, ParseMode: data.ParseMode}
 
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(HealthResponse{Ok: true})
@@ -115,7 +117,7 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("[INFO] Received webhook notification: %s", data.Content)
-	s.messagesForSend <- data.Content
+	s.messagesForSend <- events.MessagePayload{Text: data.Content}
 
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})

@@ -36,7 +36,7 @@ func run(cfg *config.Config) error {
 
 	var wg sync.WaitGroup
 
-	messagesForSend := make(chan string, 100)
+	messagesForSend := make(chan events.MessagePayload, 100)
 	defer close(messagesForSend)
 
 	sigChan := make(chan os.Signal, 1)
@@ -71,7 +71,7 @@ func run(cfg *config.Config) error {
 	return nil
 }
 
-func startHttpServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, messagesForSend chan string) *http.Server {
+func startHttpServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, messagesForSend chan events.MessagePayload) *http.Server {
 	wg.Add(1)
 	httpServer := http.CreateServer(cfg, messagesForSend)
 	go func() {
@@ -83,7 +83,7 @@ func startHttpServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config
 	return httpServer
 }
 
-func startMailServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, messagesForSend chan string) *smtp_server.Server {
+func startMailServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, messagesForSend chan events.MessagePayload) *smtp_server.Server {
 	wg.Add(1)
 	mailServer := smtp_server.NewServer(cfg, messagesForSend)
 	go func() {
@@ -95,7 +95,7 @@ func startMailServer(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config
 	return mailServer
 }
 
-func startTelegramListener(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, messagesForSend chan string) *events.TelegramListener {
+func startTelegramListener(ctx context.Context, wg *sync.WaitGroup, cfg *config.Config, messagesForSend chan events.MessagePayload) *events.TelegramListener {
 	wg.Add(1)
 	botClient := bot.NewClient()
 
