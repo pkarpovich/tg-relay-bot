@@ -87,12 +87,12 @@ func NewMarkdownMessage(chatID int64, text string, replyMarkup *tbapi.InlineKeyb
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] `POST /send {"message": "hello"}` sends plain text (backward compat)
-- [ ] `POST /send {"message": "*bold*", "parse_mode": "MarkdownV2"}` sends with MarkdownV2
-- [ ] `POST /send {"message": "<b>bold</b>", "parse_mode": "HTML"}` sends with HTML
-- [ ] Webhook and SMTP continue to send plain text
-- [ ] All tests pass
-- [ ] Run linter if configured
+- [x] `POST /send {"message": "hello"}` sends plain text (backward compat)
+- [x] `POST /send {"message": "*bold*", "parse_mode": "MarkdownV2"}` sends with MarkdownV2
+- [x] `POST /send {"message": "<b>bold</b>", "parse_mode": "HTML"}` sends with HTML
+- [x] Webhook and SMTP continue to send plain text
+- [x] All tests pass
+- [x] Run linter if configured
 
 ## Technical Details
 
