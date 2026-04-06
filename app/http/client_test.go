@@ -60,10 +60,18 @@ func TestSendHandler(t *testing.T) {
 			wantErrMessage: "unauthorized",
 		},
 		{
-			name:       "invalid json body",
-			secret:     "test-secret",
-			body:       "not json",
-			wantStatus: http.StatusBadRequest,
+			name:           "invalid json body",
+			secret:         "test-secret",
+			body:           "not json",
+			wantStatus:     http.StatusBadRequest,
+			wantErrMessage: "invalid character",
+		},
+		{
+			name:           "unsupported parse_mode",
+			secret:         "test-secret",
+			body:           map[string]string{"message": "hello", "parse_mode": "Markdown"},
+			wantStatus:     http.StatusBadRequest,
+			wantErrMessage: "unsupported parse_mode",
 		},
 	}
 

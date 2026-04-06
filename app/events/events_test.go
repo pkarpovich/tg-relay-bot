@@ -1,6 +1,7 @@
 package events
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -22,9 +23,11 @@ func (m *mockTbAPI) GetUpdatesChan(_ tbapi.UpdateConfig) tbapi.UpdatesChannel {
 func (m *mockTbAPI) Send(c tbapi.Chattable) (tbapi.Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if msg, ok := c.(tbapi.MessageConfig); ok {
-		m.messages = append(m.messages, msg)
+	msg, ok := c.(tbapi.MessageConfig)
+	if !ok {
+		return tbapi.Message{}, fmt.Errorf("unexpected Chattable type: %T", c)
 	}
+	m.messages = append(m.messages, msg)
 	return tbapi.Message{}, nil
 }
 

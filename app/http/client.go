@@ -94,6 +94,13 @@ func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	switch data.ParseMode {
+	case "", "MarkdownV2", "HTML":
+	default:
+		s.respondWithError(w, fmt.Errorf("unsupported parse_mode: %q", data.ParseMode), http.StatusBadRequest)
+		return
+	}
+
 	log.Printf("[INFO] Sending message: %s", data.Message)
 	s.messagesForSend <- events.MessagePayload{Text: data.Message, ParseMode: data.ParseMode}
 
