@@ -128,6 +128,11 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if data.Content == "" {
+		s.respondWithError(w, errors.New("content is required"), http.StatusBadRequest)
+		return
+	}
+
 	log.Printf("[INFO] Received webhook notification: %s", data.Content)
 	s.messagesForSend <- events.MessagePayload{Text: data.Content}
 

@@ -38,11 +38,6 @@ type TelegramListener struct {
 	MessagesForSend chan MessagePayload
 }
 
-type RemoveTaskData struct {
-	TaskID string `json:"taskId"`
-	Type   string `json:"type"`
-}
-
 func (tl *TelegramListener) Do(ctx context.Context) error {
 	u := tbapi.NewUpdate(0)
 	u.Timeout = 60
@@ -81,6 +76,10 @@ func (tl *TelegramListener) processEvent(update tbapi.Update) error {
 		return fmt.Errorf("failed to marshal update.Message to json: %w", errJSON)
 	}
 	log.Printf("[DEBUG] %s", string(msgJSON))
+
+	if update.Message.From == nil {
+		return nil
+	}
 
 	if !tl.isSuperUser(update.Message.From.ID) {
 		log.Printf("[DEBUG] user %d is not super user", update.Message.From.ID)
