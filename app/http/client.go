@@ -5,18 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/pkarpovich/tg-relay-bot/app/config"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/pkarpovich/tg-relay-bot/app/config"
+	"github.com/pkarpovich/tg-relay-bot/app/events"
 )
 
 type Server struct {
 	config          *config.Config
 	server          *http.Server
-	messagesForSend chan string
+	messagesForSend chan events.MessagePayload
 }
 
-func CreateServer(cfg *config.Config, messagesForSend chan string) *Server {
+func CreateServer(cfg *config.Config, messagesForSend chan events.MessagePayload) *Server {
 	mux := http.NewServeMux()
 	server := &Server{
 		config:          cfg,
@@ -28,8 +31,9 @@ func CreateServer(cfg *config.Config, messagesForSend chan string) *Server {
 	mux.HandleFunc("POST /webhook", server.webhookHandler)
 
 	server.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Http.Port),
-		Handler: mux,
+		Addr:              fmt.Sprintf(":%d", cfg.Http.Port),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	return server
@@ -49,12 +53,15 @@ func (s *Server) Start(ctx context.Context) error {
 	case err := <-errChan:
 		return err
 	case <-ctx.Done():
-		return ctx.Err()
+		return fmt.Errorf("http server context done: %w", ctx.Err())
 	}
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.server.Shutdown(ctx)
+	if err := s.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("shutdown http server: %w", err)
+	}
+	return nil
 }
 
 type HealthResponse struct {
@@ -62,7 +69,7 @@ type HealthResponse struct {
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})
 	if err != nil {
 		log.Printf("[ERROR] Failed to write response: %s", err)
@@ -78,7 +85,8 @@ func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var data struct {
-		Message string `json:"message"`
+		Message   string `json:"message"`
+		ParseMode string `json:"parse_mode"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
@@ -86,8 +94,20 @@ func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if data.Message == "" {
+		s.respondWithError(w, errors.New("message is required"), http.StatusBadRequest)
+		return
+	}
+
+	switch data.ParseMode {
+	case "", "MarkdownV2", "HTML":
+	default:
+		s.respondWithError(w, fmt.Errorf("unsupported parse_mode: %q", data.ParseMode), http.StatusBadRequest)
+		return
+	}
+
 	log.Printf("[INFO] Sending message: %s", data.Message)
-	s.messagesForSend <- data.Message
+	s.messagesForSend <- events.MessagePayload{Text: data.Message, ParseMode: data.ParseMode}
 
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(HealthResponse{Ok: true})
@@ -108,8 +128,13 @@ func (s *Server) webhookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if data.Content == "" {
+		s.respondWithError(w, errors.New("content is required"), http.StatusBadRequest)
+		return
+	}
+
 	log.Printf("[INFO] Received webhook notification: %s", data.Content)
-	s.messagesForSend <- data.Content
+	s.messagesForSend <- events.MessagePayload{Text: data.Content}
 
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})

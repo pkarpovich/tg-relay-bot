@@ -10,6 +10,7 @@ services, alert systems, or any application requiring immediate message forwardi
 
 - **HTTP and SMTP Integration**: Accepts incoming messages from both HTTP requests and SMTP emails.
 - **Telegram Forwarding**: Automatically forwards messages to a designated Telegram bot channel.
+- **Formatted Messages**: Supports Telegram `MarkdownV2` and `HTML` formatting via the optional `parse_mode` field on the `/send` endpoint.
 
 ## Configuration
 
@@ -25,7 +26,23 @@ You could configure the bot by setting the following environment variables:
 ### Sending a Message via HTTP
 
 ```bash
-curl -X POST http://localhost:8080/send -d '{"message": "Your message here"}'
+# Plain text message
+curl -X POST http://localhost:8080/send \
+  -H "Content-Type: application/json" \
+  -H "X-Secret: your-secret" \
+  -d '{"message": "Your message here"}'
+
+# Formatted message with MarkdownV2
+curl -X POST http://localhost:8080/send \
+  -H "Content-Type: application/json" \
+  -H "X-Secret: your-secret" \
+  -d '{"message": "*bold* _italic_", "parse_mode": "MarkdownV2"}'
+
+# Formatted message with HTML
+curl -X POST http://localhost:8080/send \
+  -H "Content-Type: application/json" \
+  -H "X-Secret: your-secret" \
+  -d '{"message": "<b>bold</b> <i>italic</i>", "parse_mode": "HTML"}'
 ```
 
 ### Sending a Message via SMTP

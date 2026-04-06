@@ -5,14 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"slices"
+
 	tbapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/pkarpovich/tg-relay-bot/app/bot"
-	"log"
 )
 
 const (
 	PingCommand = "ping"
 )
+
+type MessagePayload struct {
+	Text      string
+	ParseMode string
+}
 
 type Bot interface {
 	OnMessage(msg bot.Message) (bool, error)
@@ -28,12 +35,7 @@ type TelegramListener struct {
 	SuperUsers      []int64
 	TbAPI           TbAPI
 	Bot             Bot
-	MessagesForSend chan string
-}
-
-type RemoveTaskData struct {
-	TaskID string `json:"taskId"`
-	Type   string `json:"type"`
+	MessagesForSend chan MessagePayload
 }
 
 func (tl *TelegramListener) Do(ctx context.Context) error {
@@ -47,10 +49,10 @@ func (tl *TelegramListener) Do(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return fmt.Errorf("telegram listener context done: %w", ctx.Err())
 		case update, ok := <-updates:
 			if !ok {
-				return fmt.Errorf("telegram update chan closed")
+				return errors.New("telegram update chan closed")
 			}
 
 			if update.Message == nil {
@@ -75,6 +77,10 @@ func (tl *TelegramListener) processEvent(update tbapi.Update) error {
 	}
 	log.Printf("[DEBUG] %s", string(msgJSON))
 
+	if update.Message.From == nil {
+		return nil
+	}
+
 	if !tl.isSuperUser(update.Message.From.ID) {
 		log.Printf("[DEBUG] user %d is not super user", update.Message.From.ID)
 
@@ -87,8 +93,7 @@ func (tl *TelegramListener) processEvent(update tbapi.Update) error {
 		return nil
 	}
 
-	switch update.Message.Command() {
-	case PingCommand:
+	if update.Message.Command() == PingCommand {
 		tl.handlePingCommand(update)
 		return nil
 	}
@@ -129,7 +134,7 @@ func (tl *TelegramListener) transform(message *tbapi.Message) bot.Message {
 		Sent:   message.Time(),
 	}
 
-	if len(message.Caption) > 0 {
+	if message.Caption != "" {
 		msg.Text = message.Caption
 	}
 
@@ -164,15 +169,15 @@ func (tl *TelegramListener) handlePingCommand(update tbapi.Update) {
 }
 
 func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
-	adminIds := tl.SuperUsers
-
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case msg := <-tl.MessagesForSend:
-			for _, adminID := range adminIds {
-				_, err := tl.TbAPI.Send(NewMessage(adminID, msg))
+		case payload := <-tl.MessagesForSend:
+			for _, adminID := range tl.SuperUsers {
+				msg := tbapi.NewMessage(adminID, payload.Text)
+				msg.ParseMode = payload.ParseMode
+				_, err := tl.TbAPI.Send(msg)
 				if err != nil {
 					log.Printf("[ERROR] failed to send message: %v", err)
 				}
@@ -182,13 +187,7 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 }
 
 func (tl *TelegramListener) isSuperUser(userID int64) bool {
-	for _, su := range tl.SuperUsers {
-		if su == userID {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(tl.SuperUsers, userID)
 }
 
 func (tl *TelegramListener) reactToMessage(chatID int64, messageID int, reaction tbapi.ReactionType) error {
@@ -211,22 +210,3 @@ func (tl *TelegramListener) reactToMessage(chatID int64, messageID int, reaction
 	return nil
 }
 
-func NewMarkdownMessage(chatID int64, text string, replyMarkup *tbapi.InlineKeyboardMarkup) tbapi.MessageConfig {
-	return tbapi.MessageConfig{
-		BaseChat: tbapi.BaseChat{
-			ChatConfig: tbapi.ChatConfig{
-				ChatID: chatID,
-			},
-			ReplyMarkup: replyMarkup,
-		},
-		LinkPreviewOptions: tbapi.LinkPreviewOptions{
-			IsDisabled: false,
-		},
-		ParseMode: tbapi.ModeMarkdownV2,
-		Text:      text,
-	}
-}
-
-func NewMessage(chatID int64, text string) tbapi.MessageConfig {
-	return tbapi.NewMessage(chatID, text)
-}
