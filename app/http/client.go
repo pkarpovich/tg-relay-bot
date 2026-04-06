@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/pkarpovich/tg-relay-bot/app/config"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/pkarpovich/tg-relay-bot/app/config"
 )
 
 type Server struct {
@@ -28,8 +30,9 @@ func CreateServer(cfg *config.Config, messagesForSend chan string) *Server {
 	mux.HandleFunc("POST /webhook", server.webhookHandler)
 
 	server.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Http.Port),
-		Handler: mux,
+		Addr:              fmt.Sprintf(":%d", cfg.Http.Port),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	return server
@@ -49,12 +52,15 @@ func (s *Server) Start(ctx context.Context) error {
 	case err := <-errChan:
 		return err
 	case <-ctx.Done():
-		return ctx.Err()
+		return fmt.Errorf("http server context done: %w", ctx.Err())
 	}
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.server.Shutdown(ctx)
+	if err := s.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("shutdown http server: %w", err)
+	}
+	return nil
 }
 
 type HealthResponse struct {
@@ -62,7 +68,7 @@ type HealthResponse struct {
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(200)
+	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(HealthResponse{Ok: true})
 	if err != nil {
 		log.Printf("[ERROR] Failed to write response: %s", err)

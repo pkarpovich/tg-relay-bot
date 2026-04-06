@@ -52,14 +52,14 @@ func NewMarkdownMessage(chatID int64, text string, replyMarkup *tbapi.InlineKeyb
 
 ### Task 0: Upgrade Go to 1.26, update dependencies, add golangci-lint
 
-- [ ] Update `mise.toml`: `go = "1.26"`
-- [ ] Run `mise install` to install Go 1.26
-- [ ] Update `go.mod`: `go 1.26`
-- [ ] Run `go get -u ./...` to update all dependencies
-- [ ] Run `go mod tidy` to clean up
-- [ ] Copy `.golangci.yml` from `/Users/pavel.karpovich/Projects/tuclaw/.golangci.yml`
-- [ ] Run `golangci-lint run ./...` and fix all reported issues
-- [ ] Verify project compiles: `go build ./...`
+- [x] Update `mise.toml`: `go = "1.26"`
+- [x] Run `mise install` to install Go 1.26
+- [x] Update `go.mod`: `go 1.26`
+- [x] Run `go get -u ./...` to update all dependencies
+- [x] Run `go mod tidy` to clean up
+- [x] Copy `.golangci.yml` from `/Users/pavel.karpovich/Projects/tuclaw/.golangci.yml`
+- [x] Run `golangci-lint run ./...` and fix all reported issues
+- [x] Verify project compiles: `go build ./...`
 
 ### Task 1: Introduce `MessagePayload` type and update channel
 

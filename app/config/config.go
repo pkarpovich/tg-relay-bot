@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/joho/godotenv"
-	"log"
 )
 
 type TelegramConfig struct {
@@ -34,9 +36,8 @@ func Init() (*Config, error) {
 	}
 
 	var cfg Config
-	err = cleanenv.ReadEnv(&cfg)
-	if err != nil {
-		return nil, err
+	if err = cleanenv.ReadEnv(&cfg); err != nil {
+		return nil, fmt.Errorf("read env config: %w", err)
 	}
 
 	return &cfg, nil

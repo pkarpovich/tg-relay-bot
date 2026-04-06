@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"slices"
+
 	tbapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/pkarpovich/tg-relay-bot/app/bot"
-	"log"
 )
 
 const (
@@ -47,10 +49,10 @@ func (tl *TelegramListener) Do(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return fmt.Errorf("telegram listener context done: %w", ctx.Err())
 		case update, ok := <-updates:
 			if !ok {
-				return fmt.Errorf("telegram update chan closed")
+				return errors.New("telegram update chan closed")
 			}
 
 			if update.Message == nil {
@@ -87,8 +89,7 @@ func (tl *TelegramListener) processEvent(update tbapi.Update) error {
 		return nil
 	}
 
-	switch update.Message.Command() {
-	case PingCommand:
+	if update.Message.Command() == PingCommand {
 		tl.handlePingCommand(update)
 		return nil
 	}
@@ -129,7 +130,7 @@ func (tl *TelegramListener) transform(message *tbapi.Message) bot.Message {
 		Sent:   message.Time(),
 	}
 
-	if len(message.Caption) > 0 {
+	if message.Caption != "" {
 		msg.Text = message.Caption
 	}
 
@@ -182,13 +183,7 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 }
 
 func (tl *TelegramListener) isSuperUser(userID int64) bool {
-	for _, su := range tl.SuperUsers {
-		if su == userID {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(tl.SuperUsers, userID)
 }
 
 func (tl *TelegramListener) reactToMessage(chatID int64, messageID int, reaction tbapi.ReactionType) error {
