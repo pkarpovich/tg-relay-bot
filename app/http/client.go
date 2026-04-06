@@ -94,6 +94,11 @@ func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if data.Message == "" {
+		s.respondWithError(w, errors.New("message is required"), http.StatusBadRequest)
+		return
+	}
+
 	switch data.ParseMode {
 	case "", "MarkdownV2", "HTML":
 	default:

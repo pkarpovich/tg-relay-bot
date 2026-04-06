@@ -67,6 +67,13 @@ func TestSendHandler(t *testing.T) {
 			wantErrMessage: "invalid character",
 		},
 		{
+			name:           "empty message",
+			secret:         "test-secret",
+			body:           map[string]string{"message": ""},
+			wantStatus:     http.StatusBadRequest,
+			wantErrMessage: "message is required",
+		},
+		{
 			name:           "unsupported parse_mode",
 			secret:         "test-secret",
 			body:           map[string]string{"message": "hello", "parse_mode": "Markdown"},
