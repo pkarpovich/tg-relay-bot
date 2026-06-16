@@ -79,16 +79,16 @@ provided.
 ## Implementation Steps
 
 ### Task 1: Native client core + SendMessage
-- [ ] add `app/telegram` package: a `Client` (config struct: token, optional
+- [x] add `app/telegram` package: a `Client` (config struct: token, optional
       `*http.Client`, base URL override for tests) calling
       `https://api.telegram.org/bot<token>/<method>`
-- [ ] add `do(ctx, method, payload)` - POST JSON, decode the
+- [x] add `do(ctx, method, payload)` - POST JSON, decode the
       `{ok, result, description, parameters:{retry_after}}` envelope, return a typed
       error on `ok:false`, honor `429`/`retry_after` (single bounded retry)
-- [ ] add `SendMessage(ctx, chatID int64, text, parseMode string)`
-- [ ] write tests with `httptest`: success, `ok:false` error, 429 retry, parse_mode
+- [x] add `SendMessage(ctx, chatID int64, text, parseMode string)`
+- [x] write tests with `httptest`: success, `ok:false` error, 429 retry, parse_mode
       passthrough
-- [ ] run `go test ./...` - must pass before next task
+- [x] run `go test ./...` - must pass before next task
 
 ### Task 2: Minimal update types + GetUpdates long-poll
 - [ ] define minimal types in `app/telegram`: `Update`, `Message`, `User`, `Chat`,
