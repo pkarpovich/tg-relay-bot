@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"time"
 
-	tbapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/pkarpovich/tg-relay-bot/app/bot"
+	"github.com/pkarpovich/tg-relay-bot/app/telegram"
 )
 
 const (
-	PingCommand = "ping"
+	PingCommand   = "ping"
+	updateTimeout = 60
+	errorBackoff  = 5 * time.Second
 )
 
 type MessagePayload struct {
@@ -25,41 +28,56 @@ type Bot interface {
 	OnMessage(msg bot.Message) (bool, error)
 }
 
-type TbAPI interface {
-	GetUpdatesChan(config tbapi.UpdateConfig) tbapi.UpdatesChannel
-	Send(c tbapi.Chattable) (tbapi.Message, error)
-	Request(c tbapi.Chattable) (*tbapi.APIResponse, error)
+//go:generate moq -out mocks/telegram_api.go -pkg mocks -skip-ensure . TelegramAPI
+
+type TelegramAPI interface {
+	GetUpdates(ctx context.Context, offset, timeoutSec int) ([]telegram.Update, error)
+	SendMessage(ctx context.Context, chatID int64, text, parseMode string) error
+	SetMessageReaction(ctx context.Context, chatID int64, messageID int, emoji string) error
 }
 
 type TelegramListener struct {
 	SuperUsers      []int64
-	TbAPI           TbAPI
+	TbAPI           TelegramAPI
 	Bot             Bot
 	MessagesForSend chan MessagePayload
 }
 
 func (tl *TelegramListener) Do(ctx context.Context) error {
-	u := tbapi.NewUpdate(0)
-	u.Timeout = 60
-
-	updates := tl.TbAPI.GetUpdatesChan(u)
-
 	go tl.SendMessagesForAdmins(ctx)
 
+	offset := 0
 	for {
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("telegram listener context done: %w", ctx.Err())
-		case update, ok := <-updates:
-			if !ok {
-				return errors.New("telegram update chan closed")
+		default:
+		}
+
+		updates, err := tl.TbAPI.GetUpdates(ctx, offset, updateTimeout)
+		if err != nil {
+			if ctx.Err() != nil {
+				return fmt.Errorf("telegram listener context done: %w", ctx.Err())
 			}
+
+			log.Printf("[ERROR] failed to get updates: %v", err)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("telegram listener context done: %w", ctx.Err())
+			case <-time.After(errorBackoff):
+			}
+
+			continue
+		}
+
+		for _, update := range updates {
+			offset = update.UpdateID + 1
 
 			if update.Message == nil {
 				continue
 			}
 
-			if err := tl.processEvent(update); err != nil {
+			if err := tl.processEvent(ctx, update); err != nil {
 				log.Printf("[ERROR] %v", err)
 			}
 		}
@@ -70,7 +88,7 @@ func (tl *TelegramListener) Shutdown(_ context.Context) error {
 	return nil
 }
 
-func (tl *TelegramListener) processEvent(update tbapi.Update) error {
+func (tl *TelegramListener) processEvent(ctx context.Context, update telegram.Update) error {
 	msgJSON, errJSON := json.Marshal(update.Message)
 	if errJSON != nil {
 		return fmt.Errorf("failed to marshal update.Message to json: %w", errJSON)
@@ -84,9 +102,7 @@ func (tl *TelegramListener) processEvent(update tbapi.Update) error {
 	if !tl.isSuperUser(update.Message.From.ID) {
 		log.Printf("[DEBUG] user %d is not super user", update.Message.From.ID)
 
-		msg := tbapi.NewMessage(update.Message.Chat.ID, "I don't know you 🤷‍")
-		_, err := tl.TbAPI.Send(msg)
-		if err != nil {
+		if err := tl.TbAPI.SendMessage(ctx, update.Message.Chat.ID, "I don't know you 🤷‍", ""); err != nil {
 			return fmt.Errorf("failed to send message: %w", err)
 		}
 
@@ -94,37 +110,33 @@ func (tl *TelegramListener) processEvent(update tbapi.Update) error {
 	}
 
 	if update.Message.Command() == PingCommand {
-		tl.handlePingCommand(update)
+		tl.handlePingCommand(ctx, update)
 		return nil
 	}
 
 	msg := tl.transform(update.Message)
 	saved, err := tl.Bot.OnMessage(msg)
 	if err != nil {
-		errMsg := tbapi.NewMessage(update.Message.Chat.ID, "💥 Error: "+err.Error())
-		_, err := tl.TbAPI.Send(errMsg)
-		if err != nil {
-			return fmt.Errorf("failed to send error message: %w", err)
+		errText := "💥 Error: " + err.Error()
+		if sendErr := tl.TbAPI.SendMessage(ctx, update.Message.Chat.ID, errText, ""); sendErr != nil {
+			return fmt.Errorf("failed to send error message: %w", sendErr)
 		}
 
-		return errors.New(errMsg.Text)
+		return errors.New(errText)
 	}
 
 	if !saved {
 		return nil
 	}
 
-	if err := tl.reactToMessage(update.Message.Chat.ID, update.Message.MessageID, tbapi.ReactionType{
-		Type:  "emoji",
-		Emoji: "👍",
-	}); err != nil {
+	if err := tl.TbAPI.SetMessageReaction(ctx, update.Message.Chat.ID, update.Message.MessageID, "👍"); err != nil {
 		return fmt.Errorf("failed to react to message: %w", err)
 	}
 
 	return nil
 }
 
-func (tl *TelegramListener) transform(message *tbapi.Message) bot.Message {
+func (tl *TelegramListener) transform(message *telegram.Message) bot.Message {
 	msg := bot.Message{
 		ID:     message.MessageID,
 		From:   bot.User{},
@@ -141,10 +153,10 @@ func (tl *TelegramListener) transform(message *tbapi.Message) bot.Message {
 	if message.ForwardOrigin != nil {
 		origin := message.ForwardOrigin
 
-		switch message.ForwardOrigin.Type {
-		case tbapi.MessageOriginChannel:
+		switch origin.Type {
+		case telegram.MessageOriginChannel:
 			msg.Url = fmt.Sprintf("https://t.me/%s/%d", origin.Chat.UserName, origin.MessageID)
-		case tbapi.MessageOriginUser:
+		case telegram.MessageOriginUser:
 			msg.Text = fmt.Sprintf(
 				"%s %s (%s):\n%s",
 				origin.SenderUser.FirstName,
@@ -152,7 +164,7 @@ func (tl *TelegramListener) transform(message *tbapi.Message) bot.Message {
 				origin.SenderUser.UserName,
 				message.Text,
 			)
-		case tbapi.MessageOriginHiddenUser:
+		case telegram.MessageOriginHiddenUser:
 			msg.Text = fmt.Sprintf("%s:\n%s", origin.SenderUserName, message.Text)
 		}
 	}
@@ -160,10 +172,8 @@ func (tl *TelegramListener) transform(message *tbapi.Message) bot.Message {
 	return msg
 }
 
-func (tl *TelegramListener) handlePingCommand(update tbapi.Update) {
-	msg := tbapi.NewMessage(update.Message.Chat.ID, "🏓 Pong!")
-	_, err := tl.TbAPI.Send(msg)
-	if err != nil {
+func (tl *TelegramListener) handlePingCommand(ctx context.Context, update telegram.Update) {
+	if err := tl.TbAPI.SendMessage(ctx, update.Message.Chat.ID, "🏓 Pong!", ""); err != nil {
 		log.Printf("[ERROR] failed to send message: %v", err)
 	}
 }
@@ -175,10 +185,7 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 			return
 		case payload := <-tl.MessagesForSend:
 			for _, adminID := range tl.SuperUsers {
-				msg := tbapi.NewMessage(adminID, payload.Text)
-				msg.ParseMode = payload.ParseMode
-				_, err := tl.TbAPI.Send(msg)
-				if err != nil {
+				if err := tl.TbAPI.SendMessage(ctx, adminID, payload.Text, payload.ParseMode); err != nil {
 					log.Printf("[ERROR] failed to send message: %v", err)
 				}
 			}
@@ -189,24 +196,3 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 func (tl *TelegramListener) isSuperUser(userID int64) bool {
 	return slices.Contains(tl.SuperUsers, userID)
 }
-
-func (tl *TelegramListener) reactToMessage(chatID int64, messageID int, reaction tbapi.ReactionType) error {
-	reactionMsg := tbapi.SetMessageReactionConfig{
-		BaseChatMessage: tbapi.BaseChatMessage{
-			ChatConfig: tbapi.ChatConfig{
-				ChatID: chatID,
-			},
-			MessageID: messageID,
-		},
-		Reaction: []tbapi.ReactionType{reaction},
-		IsBig:    false,
-	}
-
-	_, err := tl.TbAPI.Request(reactionMsg)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	return nil
-}
-

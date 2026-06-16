@@ -105,16 +105,20 @@ provided.
 - [x] run tests - must pass before next task
 
 ### Task 4: Port `events` to the native client
-- [ ] replace the lib-typed `TbAPI` interface with a native consumer interface
+- [x] replace the lib-typed `TbAPI` interface with a native consumer interface
       (`GetUpdates`, `SendMessage`, `SetMessageReaction`) over `telegram` types
-- [ ] rewrite `Do` to poll `GetUpdates` in a loop with offset management +
+- [x] rewrite `Do` to poll `GetUpdates` in a loop with offset management +
       `context` cancellation (replacing `GetUpdatesChan`); port `processEvent`,
       `transform`, `handlePingCommand`, `SendMessagesForAdmins` (keep `parse_mode`),
       `reactToMessage` to native types
-- [ ] generate a `moq` mock of the new interface under `mocks/`
-- [ ] write tests: super-user filter, `/ping`, transform (plain/caption/forward
+- [x] generate a `moq` mock of the new interface under `mocks/`
+- [x] write tests: super-user filter, `/ping`, transform (plain/caption/forward
       variants), `OnMessage` error -> error message sent, reaction on save
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
+
+➕ main.go wiring swapped to `telegram.NewClient` here (not Task 5) because the
+   `events` interface change forces it to keep `go test ./...` green; the lib stays
+   in `go.mod` until Task 5's `go mod tidy`.
 
 ### Task 5: Wire main.go and drop the library
 - [ ] replace `tbapi.NewBotAPI(token)` in `app/main.go` with the native
