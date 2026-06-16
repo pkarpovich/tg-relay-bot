@@ -85,11 +85,11 @@ validation. Consumers adopting `md` are out of scope.
 - [x] run tests - must pass before next task
 
 ### Task 3: Accept `parse_mode: "md"` in the /send handler
-- [ ] add `"md"` (via the shared const) to the `parse_mode` validation `switch` in
+- [x] add `"md"` (via the shared const) to the `parse_mode` validation `switch` in
       `app/http/client.go` so it is enqueued instead of rejected
-- [ ] write tests: `/send` with `parse_mode:"md"` -> 200 + enqueued payload; unknown
+- [x] write tests: `/send` with `parse_mode:"md"` -> 200 + enqueued payload; unknown
       parse_mode -> 400; existing `MarkdownV2`/`HTML`/empty still accepted
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 4: Document the `md` type
 - [ ] update `README.md`: add `md` to the `/send` `parse_mode` options (sends via
