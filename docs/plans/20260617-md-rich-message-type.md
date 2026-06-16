@@ -92,7 +92,7 @@ validation. Consumers adopting `md` are out of scope.
 - [x] run tests - must pass before next task
 
 ### Task 4: Document the `md` type
-- [ ] update `README.md`: add `md` to the `/send` `parse_mode` options (sends via
+- [x] update `README.md`: add `md` to the `/send` `parse_mode` options (sends via
       `sendRichMessage` with a plain Markdown string; no escaping needed), with a
       `curl` example
 
