@@ -3,7 +3,6 @@ module github.com/pkarpovich/tg-relay-bot
 go 1.26
 
 require (
-	github.com/OvyFlash/telegram-bot-api v0.0.0-20260403204157-d5553b641929
 	github.com/flashmob/go-guerrilla v1.6.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jhillyerd/enmime v1.3.0

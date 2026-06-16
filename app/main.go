@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	tbapi "github.com/OvyFlash/telegram-bot-api"
 	"github.com/pkarpovich/tg-relay-bot/app/bot"
 	"github.com/pkarpovich/tg-relay-bot/app/config"
 	"github.com/pkarpovich/tg-relay-bot/app/events"
 	"github.com/pkarpovich/tg-relay-bot/app/http"
 	"github.com/pkarpovich/tg-relay-bot/app/smtp_server"
+	"github.com/pkarpovich/tg-relay-bot/app/telegram"
 )
 
 func main() {
@@ -99,14 +99,14 @@ func startTelegramListener(ctx context.Context, wg *sync.WaitGroup, cfg *config.
 	wg.Add(1)
 	botClient := bot.NewClient()
 
-	tbAPI, err := tbapi.NewBotAPI(cfg.Telegram.Token)
-	if err != nil {
-		log.Fatalf("[ERROR] Failed to create Telegram bot: %s", err)
+	tgClient := telegram.NewClient(telegram.Config{Token: cfg.Telegram.Token})
+	if _, err := tgClient.GetMe(ctx); err != nil {
+		log.Fatalf("[ERROR] Failed to validate Telegram bot: %s", err)
 	}
 
 	tgListener := &events.TelegramListener{
 		SuperUsers:      cfg.Telegram.SuperUsers,
-		TbAPI:           tbAPI,
+		TbAPI:           tgClient,
 		Bot:             botClient,
 		MessagesForSend: messagesForSend,
 	}
