@@ -100,9 +100,9 @@ provided.
 - [x] run tests - must pass before next task
 
 ### Task 3: SetMessageReaction
-- [ ] add `SetMessageReaction(ctx, chatID int64, messageID int, emoji string)`
-- [ ] write tests with `httptest` (correct payload + ok/error envelope)
-- [ ] run tests - must pass before next task
+- [x] add `SetMessageReaction(ctx, chatID int64, messageID int, emoji string)`
+- [x] write tests with `httptest` (correct payload + ok/error envelope)
+- [x] run tests - must pass before next task
 
 ### Task 4: Port `events` to the native client
 - [ ] replace the lib-typed `TbAPI` interface with a native consumer interface
