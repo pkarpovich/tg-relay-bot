@@ -66,12 +66,12 @@ validation. Consumers adopting `md` are out of scope.
 ## Implementation Steps
 
 ### Task 1: Native `SendRichMessage` client method
-- [ ] add `app/telegram/richmessages.go`: `SendRichMessage(ctx, chatID int64,
+- [x] add `app/telegram/richmessages.go`: `SendRichMessage(ctx, chatID int64,
       markdown string) error` calling `do(ctx, "sendRichMessage", payload)` with
       `{chat_id, rich_message:{markdown}}` (small `inputRichMessage` request struct)
-- [ ] write `httptest` tests: correct method + JSON body shape, success, and
+- [x] write `httptest` tests: correct method + JSON body shape, success, and
       `APIError` on an `ok:false` response
-- [ ] run `go test ./...` - must pass before next task
+- [x] run `go test ./...` - must pass before next task
 
 ### Task 2: Route the `md` type in events
 - [ ] add `SendRichMessage(ctx, chatID int64, markdown string) error` to the
