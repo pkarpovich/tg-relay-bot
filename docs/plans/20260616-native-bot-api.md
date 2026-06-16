@@ -129,9 +129,9 @@ provided.
 - [x] run tests - must pass before next task
 
 ### Task 6: Verify acceptance criteria
-- [ ] no remaining references to `OvyFlash/telegram-bot-api` / `tbapi` in the repo
-- [ ] `go build ./...`, `go test ./...`, `golangci-lint run` all clean
-- [ ] coverage of `telegram` + `events` meets the project standard (80%+)
+- [x] no remaining references to `OvyFlash/telegram-bot-api` / `tbapi` in the repo
+- [x] `go build ./...`, `go test ./...`, `golangci-lint run` all clean
+- [x] coverage of `telegram` + `events` meets the project standard (80%+) - telegram 91.9%, events 83.1%
 
 ## Technical Details
 - Envelope: `type apiResponse[T any] struct { OK bool; Result T; Description string;
