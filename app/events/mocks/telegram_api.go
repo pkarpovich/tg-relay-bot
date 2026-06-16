@@ -21,6 +21,9 @@ import (
 //			SendMessageFunc: func(ctx context.Context, chatID int64, text string, parseMode string) error {
 //				panic("mock out the SendMessage method")
 //			},
+//			SendRichMessageFunc: func(ctx context.Context, chatID int64, markdown string) error {
+//				panic("mock out the SendRichMessage method")
+//			},
 //			SetMessageReactionFunc: func(ctx context.Context, chatID int64, messageID int, emoji string) error {
 //				panic("mock out the SetMessageReaction method")
 //			},
@@ -36,6 +39,9 @@ type TelegramAPIMock struct {
 
 	// SendMessageFunc mocks the SendMessage method.
 	SendMessageFunc func(ctx context.Context, chatID int64, text string, parseMode string) error
+
+	// SendRichMessageFunc mocks the SendRichMessage method.
+	SendRichMessageFunc func(ctx context.Context, chatID int64, markdown string) error
 
 	// SetMessageReactionFunc mocks the SetMessageReaction method.
 	SetMessageReactionFunc func(ctx context.Context, chatID int64, messageID int, emoji string) error
@@ -62,6 +68,15 @@ type TelegramAPIMock struct {
 			// ParseMode is the parseMode argument value.
 			ParseMode string
 		}
+		// SendRichMessage holds details about calls to the SendRichMessage method.
+		SendRichMessage []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// ChatID is the chatID argument value.
+			ChatID int64
+			// Markdown is the markdown argument value.
+			Markdown string
+		}
 		// SetMessageReaction holds details about calls to the SetMessageReaction method.
 		SetMessageReaction []struct {
 			// Ctx is the ctx argument value.
@@ -76,6 +91,7 @@ type TelegramAPIMock struct {
 	}
 	lockGetUpdates         sync.RWMutex
 	lockSendMessage        sync.RWMutex
+	lockSendRichMessage    sync.RWMutex
 	lockSetMessageReaction sync.RWMutex
 }
 
@@ -160,6 +176,46 @@ func (mock *TelegramAPIMock) SendMessageCalls() []struct {
 	mock.lockSendMessage.RLock()
 	calls = mock.calls.SendMessage
 	mock.lockSendMessage.RUnlock()
+	return calls
+}
+
+// SendRichMessage calls SendRichMessageFunc.
+func (mock *TelegramAPIMock) SendRichMessage(ctx context.Context, chatID int64, markdown string) error {
+	if mock.SendRichMessageFunc == nil {
+		panic("TelegramAPIMock.SendRichMessageFunc: method is nil but TelegramAPI.SendRichMessage was just called")
+	}
+	callInfo := struct {
+		Ctx      context.Context
+		ChatID   int64
+		Markdown string
+	}{
+		Ctx:      ctx,
+		ChatID:   chatID,
+		Markdown: markdown,
+	}
+	mock.lockSendRichMessage.Lock()
+	mock.calls.SendRichMessage = append(mock.calls.SendRichMessage, callInfo)
+	mock.lockSendRichMessage.Unlock()
+	return mock.SendRichMessageFunc(ctx, chatID, markdown)
+}
+
+// SendRichMessageCalls gets all the calls that were made to SendRichMessage.
+// Check the length with:
+//
+//	len(mockedTelegramAPI.SendRichMessageCalls())
+func (mock *TelegramAPIMock) SendRichMessageCalls() []struct {
+	Ctx      context.Context
+	ChatID   int64
+	Markdown string
+} {
+	var calls []struct {
+		Ctx      context.Context
+		ChatID   int64
+		Markdown string
+	}
+	mock.lockSendRichMessage.RLock()
+	calls = mock.calls.SendRichMessage
+	mock.lockSendRichMessage.RUnlock()
 	return calls
 }
 

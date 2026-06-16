@@ -74,15 +74,15 @@ validation. Consumers adopting `md` are out of scope.
 - [x] run `go test ./...` - must pass before next task
 
 ### Task 2: Route the `md` type in events
-- [ ] add `SendRichMessage(ctx, chatID int64, markdown string) error` to the
+- [x] add `SendRichMessage(ctx, chatID int64, markdown string) error` to the
       `TelegramAPI` interface in `app/events/events.go`
-- [ ] add a shared const (e.g. `ParseModeMarkdown = "md"`) and route
+- [x] add a shared const (e.g. `ParseModeMarkdown = "md"`) and route
       `SendMessagesForAdmins`: when `payload.ParseMode == ParseModeMarkdown` call
       `SendRichMessage(adminID, payload.Text)`, else `SendMessage(...)` as today
-- [ ] regenerate the `moq` mock for `TelegramAPI` under `app/events/mocks/`
-- [ ] write tests: `md` payload -> `SendRichMessage` called (not `SendMessage`);
+- [x] regenerate the `moq` mock for `TelegramAPI` under `app/events/mocks/`
+- [x] write tests: `md` payload -> `SendRichMessage` called (not `SendMessage`);
       `MarkdownV2`/`HTML`/plain -> `SendMessage` with the parse_mode
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 3: Accept `parse_mode: "md"` in the /send handler
 - [ ] add `"md"` (via the shared const) to the `parse_mode` validation `switch` in
