@@ -121,12 +121,12 @@ provided.
    in `go.mod` until Task 5's `go mod tidy`.
 
 ### Task 5: Wire main.go and drop the library
-- [ ] replace `tbapi.NewBotAPI(token)` in `app/main.go` with the native
+- [x] replace `tbapi.NewBotAPI(token)` in `app/main.go` with the native
       `telegram.NewClient(...)`; inject into `TelegramListener`
-- [ ] remove `github.com/OvyFlash/telegram-bot-api` from `go.mod`; run `go mod tidy`
-- [ ] confirm `app/smtp_server` still compiles unchanged (it uses the channel, not
+- [x] remove `github.com/OvyFlash/telegram-bot-api` from `go.mod`; run `go mod tidy`
+- [x] confirm `app/smtp_server` still compiles unchanged (it uses the channel, not
       the lib)
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 6: Verify acceptance criteria
 - [ ] no remaining references to `OvyFlash/telegram-bot-api` / `tbapi` in the repo
