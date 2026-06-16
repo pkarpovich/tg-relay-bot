@@ -91,13 +91,13 @@ provided.
 - [x] run `go test ./...` - must pass before next task
 
 ### Task 2: Minimal update types + GetUpdates long-poll
-- [ ] define minimal types in `app/telegram`: `Update`, `Message`, `User`, `Chat`,
+- [x] define minimal types in `app/telegram`: `Update`, `Message`, `User`, `Chat`,
       `ForwardOrigin` (only used fields, Bot API JSON tags) + a `Command()` helper
       and a `Time()` from `date`
-- [ ] add `GetUpdates(ctx, offset int, timeoutSec int) ([]Update, error)` (long-poll)
-- [ ] write tests: unmarshal a sample `getUpdates` response, `Command()` parsing,
+- [x] add `GetUpdates(ctx, offset int, timeoutSec int) ([]Update, error)` (long-poll)
+- [x] write tests: unmarshal a sample `getUpdates` response, `Command()` parsing,
       forward-origin (channel/user/hidden) shapes, empty result
-- [ ] run tests - must pass before next task
+- [x] run tests - must pass before next task
 
 ### Task 3: SetMessageReaction
 - [ ] add `SetMessageReaction(ctx, chatID int64, messageID int, emoji string)`
