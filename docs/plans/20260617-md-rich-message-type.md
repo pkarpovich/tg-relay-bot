@@ -97,9 +97,16 @@ validation. Consumers adopting `md` are out of scope.
       `curl` example
 
 ### Task 5: Verify acceptance criteria
-- [ ] `go build ./...`, `go test ./...`, `golangci-lint run` all clean
-- [ ] backward compatibility: existing modes unchanged; only `md` is new
-- [ ] coverage of the changed packages meets the project standard (80%+)
+- [x] `go build ./...`, `go test ./...`, `golangci-lint run` all clean
+      (uncached: build clean, all test packages ok, lint 0 issues)
+- [x] backward compatibility: existing modes unchanged; only `md` is new
+      (events tests assert MarkdownV2/HTML/plain still call `SendMessage` with
+      `SendRichMessageCalls()` empty, `md` calls `SendRichMessage` with
+      `SendMessageCalls()` empty; `/send` keeps unknown `parse_mode` -> 400)
+- [x] coverage of the changed packages meets the project standard (80%+)
+      (telegram 94.5%, events 86.1%; app/http package is 39.1% but that is the
+      pre-existing master baseline of untested server-lifecycle funcs out of
+      scope here - the one changed func `sendHandler` is 95.2%, no regression)
 
 ## Technical Details
 - Request payload: `{"chat_id": <id>, "rich_message": {"markdown": "<text>"}}` to
