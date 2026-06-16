@@ -74,6 +74,16 @@ func TestGetUpdatesError(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, apiErr.Code)
 }
 
+func TestGetUpdatesUnmarshalError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"ok":true,"result":{"not":"an array"}}`))
+	})
+
+	_, err := c.GetUpdates(t.Context(), 0, 60)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unmarshal updates")
+}
+
 func TestMessageCommand(t *testing.T) {
 	tests := []struct {
 		name     string

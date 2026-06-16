@@ -56,6 +56,7 @@ func TestTelegramListener_processEvent(t *testing.T) {
 		botSaved      bool
 		botErr        error
 		sendErr       error
+		reactionErr   error
 		wantSendTexts []string
 		wantReaction  bool
 		wantBotCalled bool
@@ -98,6 +99,34 @@ func TestTelegramListener_processEvent(t *testing.T) {
 			wantErr:       true,
 		},
 		{
+			name:          "rejection send failure returns error",
+			message:       userMessage(999),
+			superUsers:    []int64{111},
+			sendErr:       errors.New("send failed"),
+			wantSendTexts: []string{"I don't know you 🤷‍"},
+			wantErr:       true,
+		},
+		{
+			name:          "error message send failure returns error",
+			message:       userMessage(111),
+			superUsers:    []int64{111},
+			botErr:        errors.New("boom"),
+			sendErr:       errors.New("send failed"),
+			wantSendTexts: []string{"💥 Error: boom"},
+			wantBotCalled: true,
+			wantErr:       true,
+		},
+		{
+			name:          "reaction failure returns error",
+			message:       userMessage(111),
+			superUsers:    []int64{111},
+			botSaved:      true,
+			reactionErr:   errors.New("reaction failed"),
+			wantReaction:  true,
+			wantBotCalled: true,
+			wantErr:       true,
+		},
+		{
 			name:       "nil sender is ignored",
 			message:    &telegram.Message{MessageID: 100, Chat: telegram.Chat{ID: testChatID}, Text: "hello"},
 			superUsers: []int64{111},
@@ -111,7 +140,7 @@ func TestTelegramListener_processEvent(t *testing.T) {
 					return tt.sendErr
 				},
 				SetMessageReactionFunc: func(_ context.Context, _ int64, _ int, _ string) error {
-					return nil
+					return tt.reactionErr
 				},
 			}
 			botMock := &botStub{saved: tt.botSaved, err: tt.botErr}
@@ -148,6 +177,10 @@ func TestTelegramListener_processEvent(t *testing.T) {
 			}
 
 			assert.Equal(t, tt.wantBotCalled, botMock.called)
+			if tt.wantBotCalled {
+				assert.Equal(t, tt.message.Chat.ID, botMock.gotMsg.ChatID)
+				assert.Equal(t, tt.message.Text, botMock.gotMsg.Text)
+			}
 		})
 	}
 }

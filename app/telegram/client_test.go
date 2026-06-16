@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type errRoundTripper struct{}
+
+func (errRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("transport boom")
+}
 
 func newTestClient(t *testing.T, handler http.HandlerFunc) *Client {
 	t.Helper()
@@ -72,6 +79,28 @@ func TestDoAPIError(t *testing.T) {
 	assert.Contains(t, apiErr.Error(), "chat not found")
 }
 
+func TestDoTransportError(t *testing.T) {
+	c := NewClient(Config{
+		Token:      "test-token",
+		HTTPClient: &http.Client{Transport: errRoundTripper{}},
+		BaseURL:    "http://example.invalid",
+	})
+
+	_, err := c.do(t.Context(), "someMethod", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "send someMethod request")
+}
+
+func TestDoDecodeError(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`not json`))
+	})
+
+	_, err := c.do(t.Context(), "someMethod", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decode someMethod response")
+}
+
 func TestDoRetriesOn429(t *testing.T) {
 	var calls atomic.Int32
 
@@ -89,6 +118,30 @@ func TestDoRetriesOn429(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.JSONEq(t, `{"retried":true}`, string(result))
+	assert.Equal(t, int32(2), calls.Load())
+}
+
+func TestDoRetryReturnsSecondError(t *testing.T) {
+	var calls atomic.Int32
+
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			_, _ = w.Write([]byte(`{"ok":false,"description":"Too Many Requests","parameters":{"retry_after":1}}`))
+			return
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"ok":false,"description":"Bad Request: second failure"}`))
+	})
+
+	_, err := c.do(t.Context(), "someMethod", nil)
+	require.Error(t, err)
+
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, http.StatusBadRequest, apiErr.Code)
+	assert.Equal(t, "Bad Request: second failure", apiErr.Description)
 	assert.Equal(t, int32(2), calls.Load())
 }
 
