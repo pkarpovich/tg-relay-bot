@@ -100,6 +100,9 @@ func startTelegramListener(ctx context.Context, wg *sync.WaitGroup, cfg *config.
 	botClient := bot.NewClient()
 
 	tgClient := telegram.NewClient(telegram.Config{Token: cfg.Telegram.Token})
+	if _, err := tgClient.GetMe(ctx); err != nil {
+		log.Fatalf("[ERROR] Failed to validate Telegram bot: %s", err)
+	}
 
 	tgListener := &events.TelegramListener{
 		SuperUsers:      cfg.Telegram.SuperUsers,
