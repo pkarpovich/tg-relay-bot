@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,15 @@ type errRoundTripper struct{}
 
 func (errRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
 	return nil, errors.New("transport boom")
+}
+
+// urlEchoRoundTripper fails with an error that embeds the request URL, mirroring
+// how net/http's own transport errors expose the full URL (including the bot
+// token in the path).
+type urlEchoRoundTripper struct{}
+
+func (urlEchoRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	return nil, fmt.Errorf("Post %q: dial tcp: connection refused", r.URL.String())
 }
 
 func newTestClient(t *testing.T, handler http.HandlerFunc) *Client {
@@ -89,6 +99,21 @@ func TestDoTransportError(t *testing.T) {
 	_, err := c.do(t.Context(), "someMethod", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "send someMethod request")
+}
+
+func TestDoRedactsTokenInTransportError(t *testing.T) {
+	const token = "123456:SUPER_SECRET_BOT_TOKEN"
+
+	c := NewClient(Config{
+		Token:      token,
+		HTTPClient: &http.Client{Transport: urlEchoRoundTripper{}},
+		BaseURL:    "http://example.invalid",
+	})
+
+	_, err := c.do(t.Context(), "someMethod", nil)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), token, "bot token must not leak into error strings")
+	assert.Contains(t, err.Error(), "***", "redacted token placeholder expected")
 }
 
 func TestDoDecodeError(t *testing.T) {

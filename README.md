@@ -10,7 +10,7 @@ services, alert systems, or any application requiring immediate message forwardi
 
 - **HTTP and SMTP Integration**: Accepts incoming messages from both HTTP requests and SMTP emails.
 - **Telegram Forwarding**: Automatically forwards messages to a designated Telegram bot channel.
-- **Formatted Messages**: Supports Telegram `MarkdownV2`, `HTML`, and `md` formatting via the optional `parse_mode` field on the `/send` endpoint. The `md` mode sends the message through Telegram's `sendRichMessage` as a plain Markdown string, so no MarkdownV2 escaping is needed.
+- **Formatted Messages**: Supports Telegram `MarkdownV2` and `HTML` formatting, plus an `md` mode, via the optional `parse_mode` field on the `/send` endpoint. The `md` mode sends the message through Telegram's `sendRichMessage` as a plain Markdown string, so no MarkdownV2 escaping is needed. It requires Telegram Bot API 10.1+ (the `sendRichMessage` method); `MarkdownV2`/`HTML`/plain work on any version.
 
 ## Configuration
 

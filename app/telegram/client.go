@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,32 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("telegram api error (code %d): %s", e.Code, e.Description)
 }
 
+// redactedError hides the bot token from an error's message while preserving the
+// underlying error chain for errors.Is / errors.As. Go's net/http embeds the full
+// request URL - including the token in the path - into transport error strings, so
+// returning them unredacted would leak the bot's master credential into logs.
+type redactedError struct {
+	err   error
+	token string
+}
+
+func (e *redactedError) Error() string {
+	return strings.ReplaceAll(e.err.Error(), e.token, "***")
+}
+
+func (e *redactedError) Unwrap() error {
+	return e.err
+}
+
+// redact wraps an error so its message no longer exposes the bot token.
+func (c *Client) redact(err error) error {
+	if c.token == "" {
+		return err
+	}
+
+	return &redactedError{err: err, token: c.token}
+}
+
 func (c *Client) do(ctx context.Context, method string, payload any) (json.RawMessage, error) {
 	result, err := c.doOnce(ctx, method, payload)
 
@@ -87,13 +114,13 @@ func (c *Client) doOnce(ctx context.Context, method string, payload any) (json.R
 	url := fmt.Sprintf("%s/bot%s/%s", c.baseURL, c.token, method)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("create %s request: %w", method, err)
+		return nil, fmt.Errorf("create %s request: %w", method, c.redact(err))
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("send %s request: %w", method, err)
+		return nil, fmt.Errorf("send %s request: %w", method, c.redact(err))
 	}
 	defer resp.Body.Close()
 

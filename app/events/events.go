@@ -190,28 +190,19 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 			return
 		case payload := <-tl.MessagesForSend:
 			for _, adminID := range tl.SuperUsers {
-				if err := tl.sendForAdmin(ctx, adminID, payload); err != nil {
-					log.Printf("[ERROR] failed to send message: %v", err)
+				var err error
+				if payload.ParseMode == ParseModeMarkdown {
+					err = tl.TbAPI.SendRichMessage(ctx, adminID, payload.Text)
+				} else {
+					err = tl.TbAPI.SendMessage(ctx, adminID, payload.Text, payload.ParseMode)
+				}
+
+				if err != nil {
+					log.Printf("[ERROR] failed to send to admin %d: %v", adminID, err)
 				}
 			}
 		}
 	}
-}
-
-func (tl *TelegramListener) sendForAdmin(ctx context.Context, adminID int64, payload MessagePayload) error {
-	if payload.ParseMode == ParseModeMarkdown {
-		if err := tl.TbAPI.SendRichMessage(ctx, adminID, payload.Text); err != nil {
-			return fmt.Errorf("failed to send rich message: %w", err)
-		}
-
-		return nil
-	}
-
-	if err := tl.TbAPI.SendMessage(ctx, adminID, payload.Text, payload.ParseMode); err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	return nil
 }
 
 func (tl *TelegramListener) isSuperUser(userID int64) bool {
