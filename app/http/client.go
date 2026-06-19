@@ -100,7 +100,7 @@ func (s *Server) sendHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch data.ParseMode {
-	case "", "MarkdownV2", "HTML":
+	case "", "MarkdownV2", "HTML", events.ParseModeMarkdown:
 	default:
 		s.respondWithError(w, fmt.Errorf("unsupported parse_mode: %q", data.ParseMode), http.StatusBadRequest)
 		return

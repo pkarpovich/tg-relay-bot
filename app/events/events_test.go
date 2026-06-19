@@ -347,6 +347,7 @@ func TestSendMessagesForAdmins(t *testing.T) {
 		name       string
 		payload    MessagePayload
 		superUsers []int64
+		wantRich   bool
 	}{
 		{
 			name:       "plain text sends without parse mode",
@@ -363,12 +364,21 @@ func TestSendMessagesForAdmins(t *testing.T) {
 			payload:    MessagePayload{Text: "<b>bold</b>", ParseMode: "HTML"},
 			superUsers: []int64{111},
 		},
+		{
+			name:       "md routes through SendRichMessage",
+			payload:    MessagePayload{Text: "# Title\n**bold**", ParseMode: ParseModeMarkdown},
+			superUsers: []int64{111, 222},
+			wantRich:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tgMock := &mocks.TelegramAPIMock{
 				SendMessageFunc: func(_ context.Context, _ int64, _, _ string) error {
+					return nil
+				},
+				SendRichMessageFunc: func(_ context.Context, _ int64, _ string) error {
 					return nil
 				},
 			}
@@ -384,6 +394,21 @@ func TestSendMessagesForAdmins(t *testing.T) {
 
 			ch <- tt.payload
 
+			if tt.wantRich {
+				require.Eventually(t, func() bool {
+					return len(tgMock.SendRichMessageCalls()) == len(tt.superUsers)
+				}, time.Second, 10*time.Millisecond)
+
+				richCalls := tgMock.SendRichMessageCalls()
+				require.Len(t, richCalls, len(tt.superUsers))
+				for i, c := range richCalls {
+					assert.Equal(t, tt.superUsers[i], c.ChatID)
+					assert.Equal(t, tt.payload.Text, c.Markdown)
+				}
+				assert.Empty(t, tgMock.SendMessageCalls())
+				return
+			}
+
 			require.Eventually(t, func() bool {
 				return len(tgMock.SendMessageCalls()) == len(tt.superUsers)
 			}, time.Second, 10*time.Millisecond)
@@ -396,6 +421,73 @@ func TestSendMessagesForAdmins(t *testing.T) {
 				assert.Equal(t, tt.payload.Text, c.Text)
 				assert.Equal(t, tt.payload.ParseMode, c.ParseMode)
 			}
+			assert.Empty(t, tgMock.SendRichMessageCalls())
+		})
+	}
+}
+
+func TestSendMessagesForAdminsContinuesAfterSendError(t *testing.T) {
+	tests := []struct {
+		name      string
+		payload   MessagePayload
+		failingID int64
+	}{
+		{
+			name:      "SendMessage error does not stop remaining admins",
+			payload:   MessagePayload{Text: "hello"},
+			failingID: 111,
+		},
+		{
+			name:      "SendRichMessage error does not stop remaining admins",
+			payload:   MessagePayload{Text: "# Title", ParseMode: ParseModeMarkdown},
+			failingID: 111,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			superUsers := []int64{111, 222}
+
+			tgMock := &mocks.TelegramAPIMock{
+				SendMessageFunc: func(_ context.Context, chatID int64, _, _ string) error {
+					if chatID == tt.failingID {
+						return errors.New("boom")
+					}
+					return nil
+				},
+				SendRichMessageFunc: func(_ context.Context, chatID int64, _ string) error {
+					if chatID == tt.failingID {
+						return errors.New("boom")
+					}
+					return nil
+				},
+			}
+			ch := make(chan MessagePayload, 1)
+
+			tl := &TelegramListener{
+				SuperUsers:      superUsers,
+				TbAPI:           tgMock,
+				MessagesForSend: ch,
+			}
+
+			go tl.SendMessagesForAdmins(t.Context())
+
+			ch <- tt.payload
+
+			// Every admin must be attempted even though the first one errored,
+			// so the total call count across both methods reaches len(superUsers).
+			require.Eventually(t, func() bool {
+				return len(tgMock.SendMessageCalls())+len(tgMock.SendRichMessageCalls()) == len(superUsers)
+			}, time.Second, 10*time.Millisecond)
+
+			var gotIDs []int64
+			for _, c := range tgMock.SendMessageCalls() {
+				gotIDs = append(gotIDs, c.ChatID)
+			}
+			for _, c := range tgMock.SendRichMessageCalls() {
+				gotIDs = append(gotIDs, c.ChatID)
+			}
+			assert.ElementsMatch(t, superUsers, gotIDs)
 		})
 	}
 }

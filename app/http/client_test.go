@@ -53,6 +53,16 @@ func TestSendHandler(t *testing.T) {
 			},
 		},
 		{
+			name:       "message with md parse mode",
+			secret:     "test-secret",
+			body:       map[string]string{"message": "# Title\n**bold**", "parse_mode": "md"},
+			wantStatus: http.StatusOK,
+			wantPayload: &events.MessagePayload{
+				Text:      "# Title\n**bold**",
+				ParseMode: "md",
+			},
+		},
+		{
 			name:           "wrong secret",
 			secret:         "wrong-secret",
 			body:           map[string]string{"message": "hello"},

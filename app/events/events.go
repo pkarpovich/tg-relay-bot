@@ -17,6 +17,10 @@ const (
 	PingCommand   = "ping"
 	updateTimeout = 60
 	errorBackoff  = 5 * time.Second
+
+	// ParseModeMarkdown routes a message through Telegram's sendRichMessage
+	// method, which renders a plain Markdown string with no escaping required.
+	ParseModeMarkdown = "md"
 )
 
 type MessagePayload struct {
@@ -33,6 +37,7 @@ type Bot interface {
 type TelegramAPI interface {
 	GetUpdates(ctx context.Context, offset, timeoutSec int) ([]telegram.Update, error)
 	SendMessage(ctx context.Context, chatID int64, text, parseMode string) error
+	SendRichMessage(ctx context.Context, chatID int64, markdown string) error
 	SetMessageReaction(ctx context.Context, chatID int64, messageID int, emoji string) error
 }
 
@@ -185,8 +190,15 @@ func (tl *TelegramListener) SendMessagesForAdmins(ctx context.Context) {
 			return
 		case payload := <-tl.MessagesForSend:
 			for _, adminID := range tl.SuperUsers {
-				if err := tl.TbAPI.SendMessage(ctx, adminID, payload.Text, payload.ParseMode); err != nil {
-					log.Printf("[ERROR] failed to send message: %v", err)
+				var err error
+				if payload.ParseMode == ParseModeMarkdown {
+					err = tl.TbAPI.SendRichMessage(ctx, adminID, payload.Text)
+				} else {
+					err = tl.TbAPI.SendMessage(ctx, adminID, payload.Text, payload.ParseMode)
+				}
+
+				if err != nil {
+					log.Printf("[ERROR] failed to send to admin %d: %v", adminID, err)
 				}
 			}
 		}
